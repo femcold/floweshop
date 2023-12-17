@@ -10,7 +10,7 @@ import NewAccountModal from './NewAccountModal';
 const CreateOrderForm = ({ showModal, handleClose }) => {
   const navigate = useNavigate();
 
-  const [salesOrderNumber, setSalesOrderNumber] = useState('');
+  const [salesOrderNumber, setSalesOrderNumber] = useState(null);
 
   
 
@@ -99,15 +99,26 @@ const CreateOrderForm = ({ showModal, handleClose }) => {
   useEffect(() => {
     const fetchSalesOrderNumber = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/generate-sales-order-number');
-        setSalesOrderNumber(response.data.salesOrderNumber);
+        if (!salesOrderNumber) {
+          const response = await axios.get('http://localhost:5000/api/generate-sales-order-number');
+          console.log('Response from server:', response.data);
+          setSalesOrderNumber(response.data.salesOrderNumber);
+  
+          setFormData((prevData) => ({
+            ...prevData,
+            salesOrderNumber: response.data.salesOrderNumber,
+          }));
+        }
       } catch (error) {
         console.error('Error fetching sales order number:', error);
       }
     };
   
+    fetchSalesOrderNumber();
+    
+  
     const fetchData = async () => {
-      await fetchSalesOrderNumber(); // Fetch sales order number first
+     //await fetchSalesOrderNumber(); // Fetch sales order number first
   
       if (query) {
         try {
@@ -123,7 +134,7 @@ const CreateOrderForm = ({ showModal, handleClose }) => {
   
     fetchData(); // Call the combined async function
   
-  }, [query]);
+  }, [salesOrderNumber,query]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -148,15 +159,9 @@ const CreateOrderForm = ({ showModal, handleClose }) => {
     e.preventDefault();
   
     try {
-      // Fetch the sales order number if not available
-      if (!salesOrderNumber) {
-        const response = await axios.get('http://localhost:5000/api/generate-sales-order-number');
-        setSalesOrderNumber(response.data.salesOrderNumber);
-      }
-  
       const orderData = {
         customerAccount: formData.customerAccount,
-        salesOrderNumber: salesOrderNumber, // Use the updated salesOrderNumber
+        salesOrderNumber: formData.salesOrderNumber, // Use the provided salesOrderNumber
         currency: formData.currency || 'Naira',
         orderType: formData.orderType,
         deliveryDate: formData.deliveryDate,
@@ -168,7 +173,7 @@ const CreateOrderForm = ({ showModal, handleClose }) => {
       await axios.post('http://localhost:5000/api/create-order', orderData);
   
       const nextState = {
-        salesOrderNumber: salesOrderNumber, // Use the updated salesOrderNumber
+        salesOrderNumber: formData.salesOrderNumber, // Use the provided salesOrderNumber
         customerInfo: {
           customerAccount: formData.customerAccount,
           name: formData.name,
@@ -190,7 +195,8 @@ const CreateOrderForm = ({ showModal, handleClose }) => {
       console.error('Error submitting form:', error);
     }
   };
-
+  
+  
   
 
   const handleCreateAccountClick = () => {

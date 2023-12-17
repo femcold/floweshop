@@ -1,3 +1,4 @@
+//server.js
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -43,10 +44,28 @@ const Order = mongoose.model('Order', {
 });
 
 // Create account endpoint
+async function generateUniqueCustomerAccountNumber() {
+  try {
+    let customerAccountNumber;
+    do {
+      customerAccountNumber = generateCustomerAccountNumber();
+    } while (await Customer.findOne({ account: customerAccountNumber }));
+  
+    return customerAccountNumber;
+  } catch (error) {
+    console.error('Error generating unique customer account number:', error);
+    throw error;  // Rethrow the error to be caught by the calling function
+  }
+}
+
+
 app.post('/api/create-account', async (req, res) => {
   try {
-    // Generate Customer Account Number
-    const customerAccountNumber = generateCustomerAccountNumber();
+    console.log('Incoming Data for Account Number Generation:', req.body);
+
+    // Use the customerAccount from the UI if provided, otherwise generate a new one
+    const customerAccountNumber = req.body.customerAccount || await generateUniqueCustomerAccountNumber();
+    console.log('Server Generated Account Number:', customerAccountNumber);
 
     const formData = req.body;
 
@@ -68,6 +87,9 @@ app.post('/api/create-account', async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 });
+
+
+
 
 // Insert sample customer data endpoint
 app.post('/api/insert-sample-customer', async (req, res) => {
@@ -121,13 +143,29 @@ app.get('/api/filtered-accounts', async (req, res) => {
   }
 });
 
+
+async function generateUniqueSalesOrderNumber() {
+  try {
+    let salesOrderNumber;
+    do {
+      salesOrderNumber = generateSalesOrderNumber();
+    } while (await Order.findOne({ salesOrderNumber }));
+
+    return salesOrderNumber;
+  } catch (error) {
+    console.error('Error generating unique sales order number:', error);
+    throw error;  // Rethrow the error to be caught by the calling function
+  }
+}
+
 // Create order endpoint
 app.post('/api/create-order', async (req, res) => {
   try {
     const formData = req.body;
 
-    // Generate Sales Order Number
-    const salesOrderNumber = generateSalesOrderNumber();
+    // Generate unique Sales Order Number
+    const salesOrderNumber = await generateUniqueSalesOrderNumber();
+    console.log('Server Generated Sales Order Number:', salesOrderNumber);
 
     // Use server's current date/time as the Delivery Date
     const deliveryDate = new Date();
@@ -187,6 +225,26 @@ app.get('/api/generate-sales-order-number', async (req, res) => {
     // Generate Sales Order Number
     const salesOrderNumber = generateSalesOrderNumber();
     res.status(200).json({ salesOrderNumber });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Example endpoint to fetch order details by sales order number
+app.get('/api/fetch-order-details/:salesOrderNumber', async (req, res) => {
+  try {
+    const { salesOrderNumber } = req.params;
+
+    // Fetch order details from the database based on the sales order number
+    const orderDetails = await Order.findOne({ salesOrderNumber });
+
+    if (!orderDetails) {
+      return res.status(404).json({ error: 'Order details not found' });
+    }
+
+    // Return the order details
+    res.status(200).json(orderDetails);
   } catch (error) {
     console.error(error);
     res.status(500).send('Internal Server Error');
